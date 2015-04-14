@@ -2,13 +2,21 @@
 #include "TabList.h"
 
 namespace DES_WND {
+#define  ANIMATION_ELLAPSE 20
+#define  ANIMATION_FRAME_COUNT 10
+#define ANIMATION_ID 3
 #define UP_DIRECT UIEVENT__LAST+10
 #define DOWN_DIRECT UIEVENT__LAST+11
 
 	const TCHAR* const c_szTabListItem	  = _T("TabListItem");
 	CTabList::CTabList(CPaintManagerUI* p)
-		: m_pPaintManager(p)
+		: CUIAnimation(this)
+		, m_pPaintManager(p)
+		, m_nDirect(0)
+		, m_pCursel(NULL)
+		, m_pNext(NULL)
 	{
+
 	}
 
 	CTabList::~CTabList(void) {
@@ -70,11 +78,20 @@ namespace DES_WND {
 			return;
 		}
 		if (event.Type == UP_DIRECT) {
-			SwitchItem(event.ptMouse, UP_DIRECT);
+			m_nDirect = UP_DIRECT;
+			StopAnimation(ANIMATION_ID);
+			StartAnimation(ANIMATION_ELLAPSE, ANIMATION_FRAME_COUNT, ANIMATION_ID, FALSE);
 			return;
 		}
 		if (event.Type == DOWN_DIRECT) {
-			SwitchItem(event.ptMouse, DOWN_DIRECT);
+			m_nDirect = DOWN_DIRECT;
+			StopAnimation(ANIMATION_ID);
+			StartAnimation(ANIMATION_ELLAPSE, ANIMATION_FRAME_COUNT, ANIMATION_ID, FALSE);
+			return;
+		}
+
+		if (event.Type == UIEVENT_TIMER) {
+			OnTimer(event.wParam);
 			return;
 		}
 
@@ -123,40 +140,100 @@ namespace DES_WND {
 		CVerticalLayoutUI::DoEvent(event);
 	}
 
-	bool CTabList::SwitchItem(POINT uMouse, int nDirect) {
-		switch (nDirect)
+	bool CTabList::AnimateSwitchItem(long lMove, int nDirect) {
+		////////////////先测试看看/////////////////////////
+				//this->SetItemIndex(this->GetItemAt(n_index), n_index-1);
+				/*this->SetAutoDestroy(true);
+				this->Remove(p_hover);
+				this->SetItemIndex()
+				this->SetAutoDestroy(false);*/
+		RECT t_cursel = m_pCursel->GetPos();
+		RECT t_next = m_pNext->GetPos();
+
+		t_cursel.top += nDirect*lMove;
+		t_cursel.bottom += nDirect*lMove;
+		t_next.top += (-nDirect)*lMove;
+		t_next.bottom += (-nDirect)*lMove;
+
+		if (((t_cursel.top - m_rcNext.top)*nDirect >= 0)
+			||((t_cursel.bottom - m_rcNext.bottom)*nDirect >= 0)) {
+			t_cursel.top = m_rcNext.top;
+			t_cursel.bottom = m_rcNext.bottom;
+		}
+		if (((t_next.top - m_rcCursel.top)*nDirect <= 0)
+			||((t_next.bottom - m_rcCursel.bottom)*nDirect <= 0)) {
+			t_next.top = m_rcCursel.top;
+			t_next.bottom = m_rcCursel.bottom;
+		}
+
+		m_pCursel->SetPos(t_cursel);
+		m_pNext->SetPos(t_next);
+		return false;
+	}
+
+	void CTabList::OnTimer(int nTimerID) {
+		OnAnimationElapse(nTimerID);
+	}
+
+	VOID CTabList::OnAnimationStart(int nAnimationID, BOOL bFirstLoop) {
+		if (bFirstLoop) {
+			switch (m_nDirect)
+			{
+			case UP_DIRECT: 
+				{
+					int n_index = this->GetCurSel();
+					if (n_index <= 0) {
+						StopAnimation(nAnimationID);
+					}
+					m_pCursel = this->GetItemAt(n_index);
+					m_pNext = this->GetItemAt(n_index - 1);
+
+					m_rcCursel = m_pCursel->GetPos();
+					m_rcNext = m_pNext->GetPos();
+				} break;
+			case DOWN_DIRECT: 
+				{
+					int n_index = this->GetCurSel();
+					if (n_index >= GetCount()) {
+						StopAnimation(nAnimationID);
+					}
+					m_pCursel = this->GetItemAt(n_index);
+					m_pNext = this->GetItemAt(n_index + 1);
+
+					m_rcCursel = m_pCursel->GetPos();
+					m_rcNext = m_pNext->GetPos();
+				} break;
+			default:
+				break;
+			}
+		}
+	}
+
+	VOID CTabList::OnAnimationStep(int nTotalFrame, int nCurFrame, int nAnimationID) {
+		switch (m_nDirect)
 		{
 		case UP_DIRECT: 
 			{
-				CControlUI* p_hover = m_pManager->FindSubControlByPoint(this, uMouse);
-				if (p_hover) {
-					int n_index = this->GetItemIndex(p_hover);
-					if (n_index <= 0) return false;
-					////////////////先测试看看/////////////////////////
-					this->SetItemIndex(p_hover, n_index-1);
-					/*this->SetAutoDestroy(true);
-					this->Remove(p_hover);
-					this->SetItemIndex()
-					this->SetAutoDestroy(false);*/
-				}
+				int n_average = (m_rcNext.bottom-m_rcNext.top)/nTotalFrame;
+				AnimateSwitchItem(n_average, -1);
 			} break;
-
-		case DOWN_DIRECT: {} break;
-		default: break;
+		case DOWN_DIRECT: 
+			{
+				int n_average = (m_rcCursel.bottom - m_rcCursel.top)/nTotalFrame;
+				AnimateSwitchItem(n_average, 1);
+			} break;
+		default:
+			break;
 		}
-
-		return false;
 	}
 
-	bool CTabList::UpMoveItem(POINT uMouse) {
-		return false;
+	VOID CTabList::OnAnimationStop(int nAnimationID) {
+		if (m_nDirect == UP_DIRECT) {
+			this->SetItemIndex(m_pCursel, GetCurSel() - 1);
+		} else if (m_nDirect == DOWN_DIRECT) {
+			this->SetItemIndex(m_pCursel, GetCurSel() + 1);
+		}
 	}
-
-	bool CTabList::DownMoveItem(POINT uMouse) {
-		////////////////先测试看看/////////////////////////
-		return false;
-	}
-
 	///////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////
 

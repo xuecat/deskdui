@@ -3,7 +3,7 @@
 namespace DES_WND {
 	const TCHAR* const c_szTabListItemXML = _T("listxml\\TabListItem.xml");
 
-	class CTabList : public CListUI, public IDialogBuilderCallback
+	class CTabList : public CListUI, public IDialogBuilderCallback, public CUIAnimation
 	{
 	public:
 		CTabList(CPaintManagerUI* p);
@@ -14,15 +14,22 @@ namespace DES_WND {
 
 		CControlUI* CreateControl(LPCTSTR pstrClass);
 		void DoEvent(TEventUI& event);
+		void OnTimer(int nTimerID);
 
 		bool AddItem();
 
 	private:
-		bool SwitchItem(POINT uMouse, int nDirect);
-		bool UpMoveItem(POINT uMouse);
-		bool DownMoveItem(POINT uMouse);
+		bool AnimateSwitchItem(long lMove, int nDirect);//用-1和1来表示方向
+		VOID OnAnimationStart(int nAnimationID, BOOL bFirstLoop);
+		VOID OnAnimationStep(int nTotalFrame, int nCurFrame, int nAnimationID);
+		VOID OnAnimationStop(int nAnimationID);
 
 	private:
+		int m_nDirect;
+		RECT m_rcCursel;
+		RECT m_rcNext;
+		CControlUI* m_pCursel;
+		CControlUI* m_pNext;
 		CPaintManagerUI* m_pPaintManager;
 	};
 
