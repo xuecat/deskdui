@@ -2,7 +2,8 @@
 #include "TabList.h"
 
 namespace DES_WND {
-#define  ANIMATION_ELLAPSE 20
+	
+#define  ANIMATION_ELLAPSE 15
 #define  ANIMATION_FRAME_COUNT 10
 #define ANIMATION_ID 3
 #define UP_DIRECT UIEVENT__LAST+10
@@ -20,6 +21,7 @@ namespace DES_WND {
 	}
 
 	CTabList::~CTabList(void) {
+
 	}
 
 	LPCTSTR CTabList::GetClass() const {
@@ -235,11 +237,16 @@ namespace DES_WND {
 		}
 	}
 	///////////////////////////////////////////////////////////////////////////////////
+
 	///////////////////////////////////////////////////////////////////////////////////
 
 	CTabListItem::CTabListItem():m_hBitmap(NULL) {}
 
-	CTabListItem::~CTabListItem() {}
+	CTabListItem::~CTabListItem() {
+		if (m_hBitmap) {
+			::DeleteObject(m_hBitmap);
+		}
+	}
 
 	LPCTSTR CTabListItem::GetClass() const {
 		return _T("CTabListItem");
@@ -313,14 +320,7 @@ namespace DES_WND {
 			if ((m_uButtonState &UISTATE_CAPTURED) != 0) {
 				m_uButtonState &= ~UISTATE_CAPTURED;
 				m_pManager->RemovePostPaint(this);
-				event.Type &= ~UIEVENT_BUTTONUP;
-				if (JudgeItemRect(event.ptMouse) == 1){
-					event.Type |= UP_DIRECT;
-				} else if(JudgeItemRect(event.ptMouse) == 0) {
-					event.Type |= DOWN_DIRECT;
-				} else {m_pManager->Invalidate(m_rcCurRect);return;}
-
-				this->GetOwner()->DoEvent(event);
+				SetShowItem(true);
 				m_pManager->Invalidate(m_rcCurRect);
 			}
 			return;
@@ -328,6 +328,8 @@ namespace DES_WND {
 		if( event.Type == UIEVENT_MOUSEMOVE )
 		{
 			if ((m_uButtonState&UISTATE_CAPTURED)!=0) {
+				SetShowItem(false);
+
 				LONG cy = event.ptMouse.y - m_rOldPoint.y;
 
 				m_rOldPoint = event.ptMouse;
@@ -342,7 +344,15 @@ namespace DES_WND {
 				m_rcCurRect = t_rect;
 				temp.Join(t_rect);
 
-				SetShowItem(false);
+				event.Type &= ~UIEVENT_MOUSEMOVE;
+				int n_judge = JudgeItemRect(event.ptMouse);
+				if (n_judge == 1) {
+					event.Type |= UP_DIRECT;
+				} else if(n_judge == 0) {
+					event.Type |= DOWN_DIRECT;
+				} else {m_pManager->Invalidate(temp);return;}
+
+				this->GetOwner()->DoEvent(event);
 				if (m_pManager)m_pManager->Invalidate(temp);
 			}
 			return;
@@ -457,6 +467,7 @@ namespace DES_WND {
 	}
 
 	void CTabListItem::SetShowItem(bool bShow) {
+		if (bShow == IsVisible()) return;
 		if (bShow) {
 			if (this->IsVisible()) return;
 			for (int i = 0; i < 4; i++) {
