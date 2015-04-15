@@ -1,11 +1,18 @@
 #pragma once
 #include "oleidl.h"
+typedef void (*DROPCALLBACK)(HWND, HDROP);
+//缁ф壙淇敼
 class CDropFile :
 	public IDropTarget
 {
 public:
 	CDropFile(void);
 	~CDropFile(void);
+
+	typedef struct _DRAGDATA {
+		int cfFormat;
+		STGMEDIUM stgMedium;
+	} DRAGDATA,*LPDRAGDATA;
 
 	HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, _COM_Outptr_ void **ppvObject);
 	ULONG STDMETHODCALLTYPE AddRef();
@@ -14,11 +21,16 @@ public:
 	HRESULT STDMETHODCALLTYPE DragEnter(__RPC__in_opt IDataObject *pDataObj, DWORD grfKeyState, POINTL pt, __RPC__inout DWORD *pdwEffect);
 	HRESULT STDMETHODCALLTYPE DragLeave();
 	HRESULT STDMETHODCALLTYPE Drop(__RPC__in_opt IDataObject *pDataObj, DWORD grfKeyState, POINTL pt, __RPC__inout DWORD *pdwEffect);
-	BOOL DrapDropRegister(HWND hWnd, DWORD AcceptKeyState = MK_LBUTTON);//默认接受鼠标左键
+	BOOL DrapDropRegister(HWND hWnd, DWORD AcceptKeyState = MK_LBUTTON);//脛卢脠脧陆脫脢脺脢贸卤锚脳贸录眉
+	BOOL GetDragData(IDataObject *pDataObject,FORMATETC cFmt);
+	void ProcessDrop(LPDRAGDATA pDropData/*HDROP hDrop*/);
 
 private:
+	bool	m_bUseDnDHelper;
+	IDropTargetHelper* m_piDropHelper;
 	HWND m_hTargetWnd;
 	DWORD m_dAcceptKeyState;
 	ULONG m_ulRefCount;
+	vector<LPDRAGDATA> m_Array;
 };
 
